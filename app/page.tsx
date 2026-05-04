@@ -43,6 +43,8 @@ type DentistAvailability = {
   state: "Available" | "Busy soon" | "Full schedule";
 };
 
+type IconName = "overview" | "calendar" | "doctors" | "intake";
+
 const APPOINTMENTS_KEY = "dental-clinic-appointments";
 const THEME_KEY = "dental-clinic-theme";
 
@@ -56,6 +58,13 @@ const serviceOptions = [
   "Orthodontic check",
   "Tooth extraction",
   "Whitening consultation"
+];
+
+const navigationItems: { label: string; href: string; icon: IconName }[] = [
+  { label: "Overview", href: "#overview", icon: "overview" },
+  { label: "Availability", href: "#availability", icon: "doctors" },
+  { label: "Schedule", href: "#schedule", icon: "calendar" },
+  { label: "Intake", href: "#intake", icon: "intake" }
 ];
 
 const initialAppointments: Appointment[] = [
@@ -163,6 +172,48 @@ function statusClass(status: AppointmentStatus) {
 
 function availabilityClass(state: DentistAvailability["state"]) {
   return `availability-state availability-state--${state.toLowerCase().replace(" ", "-")}`;
+}
+
+function ClinicIcon({ name }: { name: IconName }) {
+  const paths = {
+    overview: (
+      <>
+        <path d="M4 12h6V4H4v8Z" />
+        <path d="M14 20h6V4h-6v16Z" />
+        <path d="M4 20h6v-4H4v4Z" />
+      </>
+    ),
+    calendar: (
+      <>
+        <path d="M7 3v3" />
+        <path d="M17 3v3" />
+        <path d="M4 8h16" />
+        <path d="M5 5h14v15H5V5Z" />
+      </>
+    ),
+    doctors: (
+      <>
+        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+        <path d="M18 14v5" />
+        <path d="M15.5 16.5h5" />
+      </>
+    ),
+    intake: (
+      <>
+        <path d="M6 3h9l3 3v15H6V3Z" />
+        <path d="M14 3v4h4" />
+        <path d="M9 12h6" />
+        <path d="M9 16h4" />
+      </>
+    )
+  };
+
+  return (
+    <svg aria-hidden="true" className="icon" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+      {paths[name]}
+    </svg>
+  );
 }
 
 export default function Home() {
@@ -347,15 +398,40 @@ export default function Home() {
   }
 
   return (
-    <main className="clinic-shell">
-      <header className="topbar">
-        <div className="brand">
+    <div className="app-frame">
+      <aside className="clinic-sidebar" aria-label="Clinic navigation">
+        <div className="sidebar-brand">
           <div className="brand-mark" aria-hidden="true">
             DC
           </div>
           <div>
-            <p className="eyebrow">Lab 6 Front-end</p>
-            <h1>Dental Clinic Appointment Manager</h1>
+            <strong>DentaCare</strong>
+            <span>Appointment desk</span>
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+          {navigationItems.map((item) => (
+            <a href={item.href} key={item.label}>
+              <ClinicIcon name={item.icon} />
+              <span>{item.label}</span>
+            </a>
+          ))}
+        </nav>
+
+        <div className="sidebar-note">
+          <span>Clinic status</span>
+          <strong>Open for scheduled visits</strong>
+          <p>Hygiene room available after 14:00.</p>
+        </div>
+      </aside>
+
+      <main className="clinic-shell" id="overview">
+      <header className="topbar">
+        <div className="brand">
+          <div>
+            <p className="eyebrow">Dental clinic command center</p>
+            <h1>Front desk dashboard</h1>
           </div>
         </div>
 
@@ -366,16 +442,30 @@ export default function Home() {
 
       <section className="overview" aria-labelledby="overview-title">
         <div className="overview-copy">
-          <p className="eyebrow">Reception workspace</p>
-          <h2 id="overview-title">A tidy command center for visits, priorities, and dentist availability.</h2>
+          <p className="eyebrow">Today&apos;s care flow</p>
+          <h2 id="overview-title">A calmer way to coordinate dentists, rooms, and patient arrivals.</h2>
           <p>
-            Add bookings, triage urgent visits, and keep the active queue searchable without leaving the browser.
+            Track availability, schedule pressure, priority patients, and upcoming visits from a single receptionist view.
           </p>
+          <div className="care-metrics" aria-label="Clinic operating highlights">
+            <div>
+              <span>Working hours</span>
+              <strong>09:00 - 18:00</strong>
+            </div>
+            <div>
+              <span>Active dentists</span>
+              <strong>{dentistOptions.length}</strong>
+            </div>
+            <div>
+              <span>Selected day</span>
+              <strong>{formatDateLabel(selectedDate)}</strong>
+            </div>
+          </div>
         </div>
 
         <div className="clinic-photo" role="img" aria-label="Modern dental clinic treatment room">
-          <span>Open today</span>
-          <strong>09:00 - 18:00</strong>
+          <span>Care rooms prepared</span>
+          <strong>Sterile, calm, on schedule</strong>
         </div>
       </section>
 
@@ -388,7 +478,7 @@ export default function Home() {
         ))}
       </section>
 
-      <section className="availability-panel" aria-labelledby="availability-title">
+      <section className="availability-panel" aria-labelledby="availability-title" id="availability">
         <div className="availability-heading">
           <div>
             <p className="eyebrow">Dentist availability</p>
@@ -435,7 +525,7 @@ export default function Home() {
       </section>
 
       <section className="workspace">
-        <form className="booking-panel" aria-label="Add appointment" onSubmit={addAppointment}>
+        <form className="booking-panel" aria-label="Add appointment" id="intake" onSubmit={addAppointment}>
           <div className="panel-heading">
             <p className="eyebrow">New booking</p>
             <h2>Add appointment</h2>
@@ -509,7 +599,7 @@ export default function Home() {
           </button>
         </form>
 
-        <section className="schedule-board" aria-labelledby="schedule-title">
+        <section className="schedule-board" aria-labelledby="schedule-title" id="schedule">
           <div className="board-heading">
             <div>
               <p className="eyebrow">Appointment board</p>
@@ -673,6 +763,7 @@ export default function Home() {
           )}
         </section>
       </section>
-    </main>
+      </main>
+    </div>
   );
 }

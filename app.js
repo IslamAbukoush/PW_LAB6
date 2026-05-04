@@ -58,10 +58,45 @@ function loadAppointments() {
 function App() {
   const [appointments, setAppointments] = React.useState(loadAppointments);
   const [form, setForm] = React.useState(emptyForm);
+  const [filters, setFilters] = React.useState({
+    query: "",
+    status: "All",
+    dentist: "All",
+    priorityOnly: false,
+    sort: "soonest"
+  });
 
   React.useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
   }, [appointments]);
+
+  const dentists = React.useMemo(
+    () => ["All", ...Array.from(new Set(appointments.map((appointment) => appointment.dentist)))],
+    [appointments]
+  );
+
+  const visibleAppointments = React.useMemo(() => {
+    const query = filters.query.trim().toLowerCase();
+
+    return appointments
+      .filter((appointment) => {
+        const matchesQuery =
+          !query ||
+          [appointment.patient, appointment.dentist, appointment.service, appointment.notes]
+            .join(" ")
+            .toLowerCase()
+            .includes(query);
+        const matchesStatus = filters.status === "All" || appointment.status === filters.status;
+        const matchesDentist = filters.dentist === "All" || appointment.dentist === filters.dentist;
+        const matchesPriority = !filters.priorityOnly || appointment.favorite;
+
+        return matchesQuery && matchesStatus && matchesDentist && matchesPriority;
+      })
+      .sort((a, b) => {
+        const direction = filters.sort === "latest" ? -1 : 1;
+        return direction * `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
+      });
+  }, [appointments, filters]);
 
   const stats = React.useMemo(() => {
     const urgent = appointments.filter((item) => item.status === "Urgent").length;
@@ -79,6 +114,11 @@ function App() {
   function updateForm(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function updateFilter(event) {
+    const { name, value, checked, type } = event.target;
+    setFilters((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
   }
 
   function addAppointment(event) {
@@ -233,8 +273,58 @@ function App() {
           <span className="tag">{appointments.length} active records</span>
         </div>
 
+        <div className="filters" aria-label="Appointment filters">
+          <label>
+            Search
+            <input
+              name="query"
+              value={filters.query}
+              onChange={updateFilter}
+              placeholder="Patient, dentist, service..."
+            />
+          </label>
+
+          <label>
+            Status
+            <select name="status" value={filters.status} onChange={updateFilter}>
+              <option>All</option>
+              <option>Scheduled</option>
+              <option>Confirmed</option>
+              <option>Urgent</option>
+              <option>Completed</option>
+            </select>
+          </label>
+
+          <label>
+            Dentist
+            <select name="dentist" value={filters.dentist} onChange={updateFilter}>
+              {dentists.map((dentist) => (
+                <option key={dentist}>{dentist}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Sort
+            <select name="sort" value={filters.sort} onChange={updateFilter}>
+              <option value="soonest">Soonest first</option>
+              <option value="latest">Latest first</option>
+            </select>
+          </label>
+
+          <label className="check-row">
+            <input
+              name="priorityOnly"
+              type="checkbox"
+              checked={filters.priorityOnly}
+              onChange={updateFilter}
+            />
+            Priority only
+          </label>
+        </div>
+
         <div className="appointment-list">
-          {appointments.map((appointment) => (
+          {visibleAppointments.map((appointment) => (
             <article className="appointment-card" key={appointment.id}>
               <div className="card-top">
                 <div>
@@ -276,6 +366,12 @@ function App() {
             </article>
           ))}
         </div>
+        {visibleAppointments.length === 0 && (
+          <div className="empty-state">
+            <h3>No appointments found</h3>
+            <p>Adjust the filters or add a new booking for the selected dentist and status.</p>
+          </div>
+        )}
         </section>
       </section>
     </main>

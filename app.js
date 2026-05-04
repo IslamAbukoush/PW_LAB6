@@ -1,4 +1,5 @@
 const STORAGE_KEY = "dental-clinic-appointments";
+const THEME_KEY = "dental-clinic-theme";
 
 const initialAppointments = [
   {
@@ -55,8 +56,13 @@ function loadAppointments() {
   }
 }
 
+function loadTheme() {
+  return localStorage.getItem(THEME_KEY) || "light";
+}
+
 function App() {
   const [appointments, setAppointments] = React.useState(loadAppointments);
+  const [theme, setTheme] = React.useState(loadTheme);
   const [form, setForm] = React.useState(emptyForm);
   const [filters, setFilters] = React.useState({
     query: "",
@@ -69,6 +75,11 @@ function App() {
   React.useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
   }, [appointments]);
+
+  React.useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   const dentists = React.useMemo(
     () => ["All", ...Array.from(new Set(appointments.map((appointment) => appointment.dentist)))],
@@ -156,6 +167,10 @@ function App() {
     );
   }
 
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
   return (
     <main className="app">
       <header className="topbar">
@@ -166,6 +181,10 @@ function App() {
             <h1>Dental Clinic Appointment Manager</h1>
           </div>
         </div>
+        <button className="theme-toggle" type="button" onClick={toggleTheme}>
+          <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+          {theme === "light" ? "Dark mode" : "Light mode"}
+        </button>
       </header>
 
       <section className="hero" aria-labelledby="overview-title">

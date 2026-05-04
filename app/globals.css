@@ -308,6 +308,125 @@ h3 {
   color: var(--blue);
 }
 
+.availability-panel {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.availability-heading,
+.availability-card__top,
+.availability-meta,
+.timeline-header,
+.timeline-card {
+  display: flex;
+  align-items: center;
+}
+
+.availability-heading {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.date-picker {
+  width: min(260px, 100%);
+}
+
+.availability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.availability-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.availability-card__top {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.availability-card__top > div {
+  min-width: 0;
+}
+
+.availability-card h3 {
+  overflow-wrap: anywhere;
+}
+
+.availability-card p {
+  margin-bottom: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.availability-state {
+  display: inline-flex;
+  min-height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.availability-state--available {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.availability-state--busy-soon {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.availability-state--full-schedule {
+  background: var(--rose-soft);
+  color: var(--rose);
+}
+
+.load-meter {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.load-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), var(--amber));
+}
+
+.availability-meta {
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.availability-meta strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
@@ -392,6 +511,33 @@ textarea:focus {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.view-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px;
+  background: var(--surface-muted);
+}
+
+.view-tab {
+  min-height: 38px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-soft);
+  padding: 0 16px;
+  font-weight: 850;
+}
+
+.view-tab.is-active {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .record-count,
@@ -540,6 +686,98 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.timeline-view {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.timeline-header {
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 16px;
+}
+
+.timeline-header span {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.timeline-list {
+  display: grid;
+  padding: 8px 16px 16px;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 82px 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.timeline-item time {
+  padding-top: 20px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.timeline-dot {
+  position: relative;
+}
+
+.timeline-dot::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: var(--line);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.timeline-dot::after {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border: 3px solid var(--surface);
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.timeline-card {
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--surface-muted);
+}
+
+.timeline-card > div {
+  min-width: 0;
+}
+
+.timeline-card p {
+  margin: 4px 0 0;
+  color: var(--text-soft);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .empty-state {
   margin-top: 16px;
   border: 1px dashed var(--line-strong);
@@ -556,6 +794,7 @@ textarea:focus {
 
 @media (max-width: 1040px) {
   .appointment-list,
+  .availability-grid,
   .workspace,
   .filters {
     grid-template-columns: 1fr;
@@ -580,7 +819,9 @@ textarea:focus {
 @media (max-width: 820px) {
   .overview,
   .topbar,
-  .board-heading {
+  .board-heading,
+  .availability-heading,
+  .timeline-card {
     align-items: stretch;
     flex-direction: column;
   }
@@ -591,6 +832,11 @@ textarea:focus {
 
   .clinic-photo {
     min-height: 240px;
+  }
+
+  .date-picker,
+  .view-tabs {
+    width: 100%;
   }
 }
 
@@ -611,7 +857,8 @@ textarea:focus {
 
   .overview-copy,
   .schedule-board,
-  .booking-panel {
+  .booking-panel,
+  .availability-panel {
     padding: 18px;
   }
 
@@ -620,5 +867,19 @@ textarea:focus {
   .appointment-details,
   .appointment-actions {
     grid-template-columns: 1fr;
+  }
+
+  .timeline-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .timeline-item time {
+    padding-top: 14px;
+    text-align: left;
+  }
+
+  .timeline-dot {
+    display: none;
   }
 }

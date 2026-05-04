@@ -5,6 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 type AppointmentStatus = "Scheduled" | "Confirmed" | "Urgent" | "Completed";
 type Theme = "light" | "dark";
 type SortMode = "soonest" | "latest";
+type ViewMode = "board" | "timeline";
 
 type Appointment = {
   id: string;
@@ -32,6 +33,14 @@ type Stat = {
   label: string;
   value: number;
   tone: "teal" | "amber" | "rose" | "blue";
+};
+
+type DentistAvailability = {
+  dentist: string;
+  count: number;
+  capacity: number;
+  nextAppointment?: Appointment;
+  state: "Available" | "Busy soon" | "Full schedule";
 };
 
 const APPOINTMENTS_KEY = "dental-clinic-appointments";
@@ -133,8 +142,27 @@ function formatVisitDate(date: string, time: string) {
   }).format(new Date(`${date}T${time}`));
 }
 
+function formatDateLabel(date: string) {
+  return new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  }).format(new Date(`${date}T12:00`));
+}
+
+function formatTime(time: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(`2026-01-01T${time}`));
+}
+
 function statusClass(status: AppointmentStatus) {
   return `status status--${status.toLowerCase()}`;
+}
+
+function availabilityClass(state: DentistAvailability["state"]) {
+  return `availability-state availability-state--${state.toLowerCase().replace(" ", "-")}`;
 }
 
 export default function Home() {
@@ -143,6 +171,8 @@ export default function Home() {
   const [theme, setTheme] = useState<Theme>("light");
   const [form, setForm] = useState<AppointmentForm>(emptyForm);
   const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [selectedDate, setSelectedDate] = useState(initialAppointments[0].date);
+  const [viewMode, setViewMode] = useState<ViewMode>("board");
 
   useEffect(() => {
     setAppointments(readAppointments());
@@ -168,6 +198,18 @@ export default function Home() {
     () => ["All", ...Array.from(new Set([...dentistOptions, ...appointments.map((appointment) => appointment.dentist)]))],
     [appointments]
   );
+
+  const scheduleDates = useMemo(
+    () => Array.from(new Set(appointments.map((appointment) => appointment.date))).sort(),
+    [appointments]
+  );
+  const availableScheduleDates = scheduleDates.length > 0 ? scheduleDates : [selectedDate];
+
+  useEffect(() => {
+    if (scheduleDates.length > 0 && !scheduleDates.includes(selectedDate)) {
+      setSelectedDate(scheduleDates[0]);
+    }
+  }, [scheduleDates, selectedDate]);
 
   const visibleAppointments = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
@@ -203,6 +245,32 @@ export default function Home() {
       { label: "Priority patients", value: favorites, tone: "amber" }
     ];
   }, [appointments]);
+
+  const dentistAvailability = useMemo<DentistAvailability[]>(() => {
+    const allDentists = Array.from(new Set([...dentistOptions, ...appointments.map((appointment) => appointment.dentist)]));
+
+    return allDentists.map((dentist) => {
+      const dailyAppointments = appointments
+        .filter((appointment) => appointment.dentist === dentist && appointment.date === selectedDate)
+        .sort((first, second) => first.time.localeCompare(second.time));
+      const capacity = 6;
+      const count = dailyAppointments.length;
+      const state = count >= capacity ? "Full schedule" : count >= 3 ? "Busy soon" : "Available";
+
+      return {
+        dentist,
+        count,
+        capacity,
+        nextAppointment: dailyAppointments[0],
+        state
+      };
+    });
+  }, [appointments, selectedDate]);
+
+  const selectedDateAppointments = useMemo(
+    () => visibleAppointments.filter((appointment) => appointment.date === selectedDate),
+    [selectedDate, visibleAppointments]
+  );
 
   function updateForm(event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const name = event.target.name as keyof AppointmentForm;
@@ -252,6 +320,7 @@ export default function Home() {
         `${first.date} ${first.time}`.localeCompare(`${second.date} ${second.time}`)
       )
     );
+    setSelectedDate(nextAppointment.date);
     setForm(emptyForm);
   }
 
@@ -317,6 +386,52 @@ export default function Home() {
             <strong>{stat.value}</strong>
           </article>
         ))}
+      </section>
+
+      <section className="availability-panel" aria-labelledby="availability-title">
+        <div className="availability-heading">
+          <div>
+            <p className="eyebrow">Dentist availability</p>
+            <h2 id="availability-title">{formatDateLabel(selectedDate)}</h2>
+          </div>
+          <label className="field date-picker">
+            <span>Schedule date</span>
+            <select value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)}>
+              {availableScheduleDates.map((date) => (
+                <option key={date} value={date}>
+                  {formatDateLabel(date)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="availability-grid">
+          {dentistAvailability.map((item) => {
+            const load = Math.min(100, Math.round((item.count / item.capacity) * 100));
+
+            return (
+              <article className="availability-card" key={item.dentist}>
+                <div className="availability-card__top">
+                  <div>
+                    <h3>{item.dentist}</h3>
+                    <p>{item.nextAppointment ? `Next: ${formatTime(item.nextAppointment.time)}` : "No visits planned"}</p>
+                  </div>
+                  <span className={availabilityClass(item.state)}>{item.state}</span>
+                </div>
+                <div className="load-meter" aria-label={`${item.dentist} workload ${load}%`}>
+                  <span style={{ width: `${load}%` }} />
+                </div>
+                <div className="availability-meta">
+                  <strong>
+                    {item.count}/{item.capacity}
+                  </strong>
+                  <span>daily capacity</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="workspace">
@@ -403,6 +518,23 @@ export default function Home() {
             <span className="record-count">{appointments.length} active records</span>
           </div>
 
+          <div className="view-tabs" aria-label="Schedule view">
+            <button
+              className={`view-tab ${viewMode === "board" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setViewMode("board")}
+            >
+              Board
+            </button>
+            <button
+              className={`view-tab ${viewMode === "timeline" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setViewMode("timeline")}
+            >
+              Timeline
+            </button>
+          </div>
+
           <div className="filters" aria-label="Appointment filters">
             <label className="field">
               <span>Search</span>
@@ -452,64 +584,91 @@ export default function Home() {
             </label>
           </div>
 
-          <div className="appointment-list">
-            {visibleAppointments.map((appointment) => (
-              <article className="appointment-card" key={appointment.id}>
-                <div className="appointment-card__top">
-                  <div>
-                    <p className="appointment-card__time">{formatVisitDate(appointment.date, appointment.time)}</p>
-                    <h3>{appointment.patient}</h3>
+          {viewMode === "board" ? (
+            <div className="appointment-list">
+              {visibleAppointments.map((appointment) => (
+                <article className="appointment-card" key={appointment.id}>
+                  <div className="appointment-card__top">
+                    <div>
+                      <p className="appointment-card__time">{formatVisitDate(appointment.date, appointment.time)}</p>
+                      <h3>{appointment.patient}</h3>
+                    </div>
+                    <span className={statusClass(appointment.status)}>{appointment.status}</span>
                   </div>
-                  <span className={statusClass(appointment.status)}>{appointment.status}</span>
-                </div>
 
-                <div className="appointment-details">
-                  <div>
-                    <span>Dentist</span>
-                    <strong>{appointment.dentist}</strong>
+                  <div className="appointment-details">
+                    <div>
+                      <span>Dentist</span>
+                      <strong>{appointment.dentist}</strong>
+                    </div>
+                    <div>
+                      <span>Service</span>
+                      <strong>{appointment.service}</strong>
+                    </div>
+                    <div className="appointment-details__full">
+                      <span>Notes</span>
+                      <strong>{appointment.notes}</strong>
+                    </div>
                   </div>
-                  <div>
-                    <span>Service</span>
-                    <strong>{appointment.service}</strong>
+
+                  <div className="appointment-actions">
+                    <button
+                      className={`button button--compact ${appointment.favorite ? "button--accent" : "button--ghost"}`}
+                      type="button"
+                      onClick={() => toggleFavorite(appointment.id)}
+                      aria-pressed={appointment.favorite}
+                    >
+                      {appointment.favorite ? "Priority" : "Mark priority"}
+                    </button>
+
+                    <select
+                      value={appointment.status}
+                      onChange={(event) => updateStatus(appointment.id, event.target.value as AppointmentStatus)}
+                      aria-label={`Change status for ${appointment.patient}`}
+                    >
+                      {statusOptions.map((status) => (
+                        <option key={status}>{status}</option>
+                      ))}
+                    </select>
+
+                    <button className="button button--danger" type="button" onClick={() => removeAppointment(appointment.id)}>
+                      Remove
+                    </button>
                   </div>
-                  <div className="appointment-details__full">
-                    <span>Notes</span>
-                    <strong>{appointment.notes}</strong>
-                  </div>
-                </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="timeline-view" aria-label={`${formatDateLabel(selectedDate)} timeline`}>
+              <div className="timeline-header">
+                <strong>{formatDateLabel(selectedDate)}</strong>
+                <span>{selectedDateAppointments.length} matching visits</span>
+              </div>
+              <div className="timeline-list">
+                {selectedDateAppointments.map((appointment) => (
+                  <article className="timeline-item" key={appointment.id}>
+                    <time>{formatTime(appointment.time)}</time>
+                    <div className="timeline-dot" aria-hidden="true" />
+                    <div className="timeline-card">
+                      <div>
+                        <h3>{appointment.patient}</h3>
+                        <p>
+                          {appointment.service} with {appointment.dentist}
+                        </p>
+                      </div>
+                      <span className={statusClass(appointment.status)}>{appointment.status}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
 
-                <div className="appointment-actions">
-                  <button
-                    className={`button button--compact ${appointment.favorite ? "button--accent" : "button--ghost"}`}
-                    type="button"
-                    onClick={() => toggleFavorite(appointment.id)}
-                    aria-pressed={appointment.favorite}
-                  >
-                    {appointment.favorite ? "Priority" : "Mark priority"}
-                  </button>
-
-                  <select
-                    value={appointment.status}
-                    onChange={(event) => updateStatus(appointment.id, event.target.value as AppointmentStatus)}
-                    aria-label={`Change status for ${appointment.patient}`}
-                  >
-                    {statusOptions.map((status) => (
-                      <option key={status}>{status}</option>
-                    ))}
-                  </select>
-
-                  <button className="button button--danger" type="button" onClick={() => removeAppointment(appointment.id)}>
-                    Remove
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          {visibleAppointments.length === 0 && (
+          {((viewMode === "board" && visibleAppointments.length === 0) ||
+            (viewMode === "timeline" && selectedDateAppointments.length === 0)) && (
             <div className="empty-state">
               <h3>No appointments found</h3>
-              <p>Adjust the filters or add a new booking for the selected dentist and status.</p>
+              <p>Adjust the filters, pick another date, or add a new booking for this schedule.</p>
             </div>
           )}
         </section>

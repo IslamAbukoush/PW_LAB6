@@ -1,6 +1,8 @@
+const STORAGE_KEY = "dental-clinic-appointments";
+
 const initialAppointments = [
   {
-    id: crypto.randomUUID(),
+    id: "apt-1",
     patient: "Mara Ionescu",
     dentist: "Dr. Ana Pop",
     service: "Routine cleaning",
@@ -11,7 +13,7 @@ const initialAppointments = [
     favorite: true
   },
   {
-    id: crypto.randomUUID(),
+    id: "apt-2",
     patient: "Victor Rusu",
     dentist: "Dr. Mihai Sandu",
     service: "Orthodontic check",
@@ -22,7 +24,7 @@ const initialAppointments = [
     favorite: false
   },
   {
-    id: crypto.randomUUID(),
+    id: "apt-3",
     patient: "Elena Ceban",
     dentist: "Dr. Ana Pop",
     service: "Tooth extraction",
@@ -34,8 +36,32 @@ const initialAppointments = [
   }
 ];
 
+const emptyForm = {
+  patient: "",
+  dentist: "Dr. Ana Pop",
+  service: "Routine cleaning",
+  date: "2026-05-07",
+  time: "10:00",
+  status: "Scheduled",
+  notes: ""
+};
+
+function loadAppointments() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : initialAppointments;
+  } catch {
+    return initialAppointments;
+  }
+}
+
 function App() {
-  const [appointments] = React.useState(initialAppointments);
+  const [appointments, setAppointments] = React.useState(loadAppointments);
+  const [form, setForm] = React.useState(emptyForm);
+
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+  }, [appointments]);
 
   const stats = React.useMemo(() => {
     const urgent = appointments.filter((item) => item.status === "Urgent").length;
@@ -49,6 +75,46 @@ function App() {
       { label: "Priority patients", value: favorites }
     ];
   }, [appointments]);
+
+  function updateForm(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function addAppointment(event) {
+    event.preventDefault();
+
+    const nextAppointment = {
+      ...form,
+      id: crypto.randomUUID(),
+      patient: form.patient.trim(),
+      notes: form.notes.trim() || "No extra notes.",
+      favorite: false
+    };
+
+    setAppointments((current) =>
+      [...current, nextAppointment].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+    );
+    setForm(emptyForm);
+  }
+
+  function removeAppointment(id) {
+    setAppointments((current) => current.filter((appointment) => appointment.id !== id));
+  }
+
+  function toggleFavorite(id) {
+    setAppointments((current) =>
+      current.map((appointment) =>
+        appointment.id === id ? { ...appointment, favorite: !appointment.favorite } : appointment
+      )
+    );
+  }
+
+  function updateStatus(id, status) {
+    setAppointments((current) =>
+      current.map((appointment) => (appointment.id === id ? { ...appointment, status } : appointment))
+    );
+  }
 
   return (
     <main className="app">
@@ -82,7 +148,83 @@ function App() {
         <div className="hero-art" role="img" aria-label="Bright modern dental clinic room"></div>
       </section>
 
-      <section className="schedule-panel" aria-labelledby="schedule-title">
+      <section className="workspace">
+        <form className="appointment-form" aria-label="Add appointment" onSubmit={addAppointment}>
+          <div>
+            <p className="eyebrow">New booking</p>
+            <h2>Add appointment</h2>
+          </div>
+
+          <label>
+            Patient name
+            <input
+              name="patient"
+              value={form.patient}
+              onChange={updateForm}
+              placeholder="e.g. Daniel Marin"
+              required
+            />
+          </label>
+
+          <div className="form-grid">
+            <label>
+              Dentist
+              <select name="dentist" value={form.dentist} onChange={updateForm}>
+                <option>Dr. Ana Pop</option>
+                <option>Dr. Mihai Sandu</option>
+                <option>Dr. Irina Ciobanu</option>
+              </select>
+            </label>
+
+            <label>
+              Service
+              <select name="service" value={form.service} onChange={updateForm}>
+                <option>Routine cleaning</option>
+                <option>Dental filling</option>
+                <option>Orthodontic check</option>
+                <option>Tooth extraction</option>
+                <option>Whitening consultation</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="form-grid">
+            <label>
+              Date
+              <input name="date" type="date" value={form.date} onChange={updateForm} required />
+            </label>
+
+            <label>
+              Time
+              <input name="time" type="time" value={form.time} onChange={updateForm} required />
+            </label>
+          </div>
+
+          <label>
+            Status
+            <select name="status" value={form.status} onChange={updateForm}>
+              <option>Scheduled</option>
+              <option>Confirmed</option>
+              <option>Urgent</option>
+              <option>Completed</option>
+            </select>
+          </label>
+
+          <label>
+            Notes
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={updateForm}
+              rows="4"
+              placeholder="Allergies, scan reminders, follow-up context..."
+            />
+          </label>
+
+          <button className="primary-button" type="submit">Add appointment</button>
+        </form>
+
+        <section className="schedule-panel" aria-labelledby="schedule-title">
         <div className="section-head">
           <div>
             <p className="eyebrow">Appointment board</p>
@@ -99,17 +241,42 @@ function App() {
                   <h3>{appointment.patient}</h3>
                   <span className="tag">{appointment.status}</span>
                 </div>
-                <strong>{appointment.time}</strong>
+                <button
+                  className={`icon-button ${appointment.favorite ? "is-active" : ""}`}
+                  type="button"
+                  onClick={() => toggleFavorite(appointment.id)}
+                  aria-label={appointment.favorite ? "Remove priority mark" : "Mark as priority"}
+                  title={appointment.favorite ? "Remove priority mark" : "Mark as priority"}
+                >
+                  ★
+                </button>
               </div>
               <div className="detail-list">
                 <div><span>Dentist:</span> {appointment.dentist}</div>
                 <div><span>Service:</span> {appointment.service}</div>
                 <div><span>Date:</span> {appointment.date}</div>
+                <div><span>Time:</span> {appointment.time}</div>
                 <div><span>Notes:</span> {appointment.notes}</div>
+              </div>
+              <div className="card-actions">
+                <select
+                  value={appointment.status}
+                  onChange={(event) => updateStatus(appointment.id, event.target.value)}
+                  aria-label={`Change status for ${appointment.patient}`}
+                >
+                  <option>Scheduled</option>
+                  <option>Confirmed</option>
+                  <option>Urgent</option>
+                  <option>Completed</option>
+                </select>
+                <button className="danger-button" type="button" onClick={() => removeAppointment(appointment.id)}>
+                  Remove
+                </button>
               </div>
             </article>
           ))}
         </div>
+        </section>
       </section>
     </main>
   );

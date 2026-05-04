@@ -1,6 +1,6 @@
 # Dental Clinic Appointment Manager
 
-Client-side only React application for Laboratory Work 6. The app helps a small dental clinic manage patient appointments directly in the browser.
+Client-side only Next.js + TypeScript application for Laboratory Work 6. The app helps a small dental clinic manage patient appointments directly in the browser.
 
 ## Topic
 
@@ -10,7 +10,7 @@ Dental Clinic Appointment Manager
 
 The application is a reception desk workspace for a dental clinic. It keeps an appointment board with patient name, dentist, service, date, time, status, notes, and a priority marker. Reception staff can create new appointments, remove outdated ones, update the visit status, mark important patients, search the schedule, and filter the visible queue.
 
-The interface includes a custom dental clinic theme and supports both light and dark modes. Appointment data and the selected theme are stored in `localStorage`, while the rest of the UI state runs in memory.
+The interface includes a consistent dental clinic dashboard theme and supports both light and dark modes. Appointment data and the selected theme are stored in `localStorage`, while the rest of the UI state runs in memory.
 
 ## Main Flows
 
@@ -39,34 +39,47 @@ The interface includes a custom dental clinic theme and supports both light and 
 
 - Entities: appointments.
 - Entity operations: add, remove, update status, mark priority, search, filter, and sort.
-- Custom style: clinic dashboard layout with responsive cards and custom colors.
+- Custom style: responsive clinic dashboard layout, shared design tokens, consistent form controls, cards, badges, and buttons.
 - Light/dark version: stored theme toggle.
 - Public hosting: the project is ready for GitHub Pages or any static hosting service.
 
 ## Dev Requirements Coverage
 
-- Framework/library: React 18.
+- Framework/library: Next.js with React and TypeScript.
 - Runtime state: form data, filters, and derived visible appointments.
 - Browser storage: appointments and theme are saved in `localStorage`.
-- Git history: implemented in five checkpoint commits.
-- Hosting: no backend and no build step required.
+- Git history: implemented through checkpoint commits.
+- Hosting: static export is enabled with `output: "export"` in `next.config.mjs`.
 
 ## Run Locally
 
-Open `index.html` in a browser, or serve the folder with any static server.
+Install dependencies:
 
 ```bash
-python -m http.server 5173
+npm install
 ```
 
-Then open `http://localhost:5173`.
+Start the Next.js development server:
 
-The app loads React from public CDN links, so an internet connection is needed when running it locally.
+```bash
+npm run dev
+```
+
+Then open `http://localhost:3000`.
+
+Run a production static build:
+
+```bash
+npm run build
+```
+
+The exported static files are generated in `out/`.
 
 ## GitHub Pages Deployment
 
 1. Push the repository to GitHub.
 2. Open repository `Settings`.
 3. Go to `Pages`.
-4. Set source to the `main` branch and root folder.
-5. Save and use the generated public URL for submission.
+4. Build the project with `npm run build`.
+5. Publish the generated `out/` folder with GitHub Pages, GitHub Actions, or another static host.
+6. Use the generated public URL for submission.

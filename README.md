@@ -2,6 +2,12 @@
 
 Next.js + TypeScript application for Laboratory Work 7, extending the Lab 6 dental clinic appointment dashboard with an authenticated REST back-end API.
 
+## Live Deployment
+
+- App: https://pw-lab-6-five.vercel.app/
+- Swagger UI: https://pw-lab-6-five.vercel.app/docs
+- OpenAPI JSON: https://pw-lab-6-five.vercel.app/api/openapi
+
 ## Topic
 
 Dental Clinic Appointment Manager
@@ -84,4 +90,6 @@ npm run build
 
 ## Deployment Note
 
-Lab 6 was static-export ready. Lab 7 adds dynamic route handlers, so deployment now needs a Node-compatible Next.js host such as Vercel, Render, Railway, or a VPS. GitHub Pages alone is no longer enough for the back-end routes.
+The project is hosted on Vercel at https://pw-lab-6-five.vercel.app/. Lab 6 was static-export ready, but Lab 7 adds dynamic route handlers, so deployment now needs a Node-compatible Next.js host such as Vercel, Render, Railway, or a VPS. GitHub Pages alone is no longer enough for the back-end routes.
+
+For production deployments, set `JWT_SECRET` in the hosting environment. If it is not set, the app uses a development fallback secret suitable only for local/demo use.

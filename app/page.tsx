@@ -6,6 +6,8 @@ type AppointmentStatus = "Scheduled" | "Confirmed" | "Urgent" | "Completed";
 type Theme = "light" | "dark";
 type SortMode = "soonest" | "latest";
 type ViewMode = "board" | "timeline";
+type Role = "ADMIN" | "WRITER" | "VISITOR";
+type Permission = "READ" | "WRITE" | "DELETE";
 
 type Appointment = {
   id: string;
@@ -20,6 +22,27 @@ type Appointment = {
 };
 
 type AppointmentForm = Omit<Appointment, "id" | "favorite">;
+
+type ApiToken = {
+  token: string;
+  tokenType: "Bearer";
+  expiresIn: number;
+  expiresAt: string;
+  role: Role;
+  permissions: Permission[];
+};
+
+type AppointmentListResponse = {
+  data: Appointment[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    returned: number;
+    nextOffset: number | null;
+    previousOffset: number | null;
+  };
+};
 
 type Filters = {
   query: string;
@@ -45,10 +68,11 @@ type DentistAvailability = {
 
 type IconName = "overview" | "calendar" | "doctors" | "intake";
 
-const APPOINTMENTS_KEY = "dental-clinic-appointments";
 const THEME_KEY = "dental-clinic-theme";
+const TOKEN_ROLE_KEY = "dental-clinic-api-role";
 
 const statusOptions: AppointmentStatus[] = ["Scheduled", "Confirmed", "Urgent", "Completed"];
+const roleOptions: Role[] = ["ADMIN", "WRITER", "VISITOR"];
 
 const dentistOptions = ["Dr. Ana Pop", "Dr. Mihai Sandu", "Dr. Irina Ciobanu"];
 
@@ -121,25 +145,21 @@ const initialFilters: Filters = {
   sort: "soonest"
 };
 
-function readAppointments(): Appointment[] {
-  if (typeof window === "undefined") {
-    return initialAppointments;
-  }
-
-  try {
-    const stored = window.localStorage.getItem(APPOINTMENTS_KEY);
-    return stored ? (JSON.parse(stored) as Appointment[]) : initialAppointments;
-  } catch {
-    return initialAppointments;
-  }
-}
-
 function readTheme(): Theme {
   if (typeof window === "undefined") {
     return "light";
   }
 
   return window.localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+}
+
+function readStoredRole(): Role {
+  if (typeof window === "undefined") {
+    return "ADMIN";
+  }
+
+  const storedRole = window.localStorage.getItem(TOKEN_ROLE_KEY);
+  return roleOptions.includes(storedRole as Role) ? (storedRole as Role) : "ADMIN";
 }
 
 function formatVisitDate(date: string, time: string) {
@@ -164,6 +184,14 @@ function formatTime(time: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(`2026-01-01T${time}`));
+}
+
+function formatTokenExpiry(expiresAt: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date(expiresAt));
 }
 
 function statusClass(status: AppointmentStatus) {
@@ -219,6 +247,10 @@ function ClinicIcon({ name }: { name: IconName }) {
 export default function Home() {
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [apiToken, setApiToken] = useState<ApiToken | null>(null);
+  const [selectedRole, setSelectedRole] = useState<Role>("ADMIN");
+  const [apiStatus, setApiStatus] = useState("Requesting API token...");
+  const [isSyncing, setIsSyncing] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [form, setForm] = useState<AppointmentForm>(emptyForm);
   const [filters, setFilters] = useState<Filters>(initialFilters);
@@ -226,9 +258,12 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>("board");
 
   useEffect(() => {
-    setAppointments(readAppointments());
+    const storedRole = readStoredRole();
+
     setTheme(readTheme());
+    setSelectedRole(storedRole);
     setHasLoadedStorage(true);
+    void requestToken(storedRole);
   }, []);
 
   useEffect(() => {
@@ -238,12 +273,6 @@ export default function Home() {
       window.localStorage.setItem(THEME_KEY, theme);
     }
   }, [hasLoadedStorage, theme]);
-
-  useEffect(() => {
-    if (hasLoadedStorage) {
-      window.localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments));
-    }
-  }, [appointments, hasLoadedStorage]);
 
   const dentists = useMemo(
     () => ["All", ...Array.from(new Set([...dentistOptions, ...appointments.map((appointment) => appointment.dentist)]))],
@@ -322,6 +351,101 @@ export default function Home() {
     () => visibleAppointments.filter((appointment) => appointment.date === selectedDate),
     [selectedDate, visibleAppointments]
   );
+  const canWrite = apiToken?.permissions.includes("WRITE") ?? false;
+  const canDelete = apiToken?.permissions.includes("DELETE") ?? false;
+  const tokenExpiryLabel = apiToken ? formatTokenExpiry(apiToken.expiresAt) : "No token";
+
+  async function requestToken(role: Role = selectedRole) {
+    setIsSyncing(true);
+    setApiStatus(`Requesting ${role} token...`);
+
+    try {
+      const response = await fetch("/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ role })
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const token = (await response.json()) as ApiToken;
+      setApiToken(token);
+      setSelectedRole(token.role);
+      window.localStorage.setItem(TOKEN_ROLE_KEY, token.role);
+      await loadAppointments(token.token);
+    } catch (error) {
+      setApiStatus(error instanceof Error ? error.message : "Could not request a token.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function loadAppointments(token = apiToken?.token) {
+    if (!token) {
+      setApiStatus("Request a JWT before loading appointments.");
+      return;
+    }
+
+    setIsSyncing(true);
+
+    try {
+      const response = await fetch("/api/appointments?limit=100&offset=0&sort=soonest", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const payload = (await response.json()) as AppointmentListResponse;
+      setAppointments(payload.data);
+      setApiStatus(`Loaded ${payload.pagination.returned} of ${payload.pagination.total} API records.`);
+    } catch (error) {
+      setApiStatus(error instanceof Error ? error.message : "Could not load appointments from API.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function sendApiRequest(path: string, options: RequestInit = {}) {
+    if (!apiToken) {
+      setApiStatus("Request a JWT before calling the API.");
+      return null;
+    }
+
+    const headers = new Headers(options.headers);
+    headers.set("Authorization", `Bearer ${apiToken.token}`);
+
+    if (options.body && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    const response = await fetch(path, {
+      ...options,
+      headers
+    });
+
+    if (response.status === 401) {
+      setApiStatus("The JWT expired or is invalid. Refresh the token to continue.");
+    }
+
+    return response;
+  }
+
+  async function readApiError(response: Response) {
+    try {
+      const body = (await response.json()) as { error?: string };
+      return body.error ?? `Request failed with ${response.status}.`;
+    } catch {
+      return `Request failed with ${response.status}.`;
+    }
+  }
 
   function updateForm(event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const name = event.target.name as keyof AppointmentForm;
@@ -355,42 +479,125 @@ export default function Home() {
     }
   }
 
-  function addAppointment(event: FormEvent<HTMLFormElement>) {
+  async function addAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const nextAppointment: Appointment = {
+    if (!canWrite) {
+      setApiStatus("Current token does not include WRITE permission.");
+      return;
+    }
+
+    const nextAppointment = {
       ...form,
-      id: crypto.randomUUID(),
       patient: form.patient.trim(),
       notes: form.notes.trim() || "No extra notes.",
       favorite: false
     };
 
-    setAppointments((current) =>
-      [...current, nextAppointment].sort((first, second) =>
-        `${first.date} ${first.time}`.localeCompare(`${second.date} ${second.time}`)
-      )
-    );
-    setSelectedDate(nextAppointment.date);
-    setForm(emptyForm);
+    setIsSyncing(true);
+
+    try {
+      const response = await sendApiRequest("/api/appointments", {
+        method: "POST",
+        body: JSON.stringify(nextAppointment)
+      });
+
+      if (!response) {
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const created = (await response.json()) as Appointment;
+      setAppointments((current) =>
+        [...current, created].sort((first, second) =>
+          `${first.date} ${first.time}`.localeCompare(`${second.date} ${second.time}`)
+        )
+      );
+      setSelectedDate(created.date);
+      setForm(emptyForm);
+      setApiStatus(`Created appointment for ${created.patient}.`);
+    } catch (error) {
+      setApiStatus(error instanceof Error ? error.message : "Could not create appointment.");
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
-  function removeAppointment(id: string) {
-    setAppointments((current) => current.filter((appointment) => appointment.id !== id));
+  async function removeAppointment(id: string) {
+    if (!canDelete) {
+      setApiStatus("Current token does not include DELETE permission.");
+      return;
+    }
+
+    setIsSyncing(true);
+
+    try {
+      const response = await sendApiRequest(`/api/appointments/${id}`, {
+        method: "DELETE"
+      });
+
+      if (!response) {
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      setAppointments((current) => current.filter((appointment) => appointment.id !== id));
+      setApiStatus("Appointment deleted from the API.");
+    } catch (error) {
+      setApiStatus(error instanceof Error ? error.message : "Could not delete appointment.");
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
-  function toggleFavorite(id: string) {
-    setAppointments((current) =>
-      current.map((appointment) =>
-        appointment.id === id ? { ...appointment, favorite: !appointment.favorite } : appointment
-      )
-    );
+  async function toggleFavorite(id: string) {
+    const appointment = appointments.find((item) => item.id === id);
+
+    if (appointment) {
+      await updateAppointmentFields(id, { favorite: !appointment.favorite });
+    }
   }
 
-  function updateStatus(id: string, status: AppointmentStatus) {
-    setAppointments((current) =>
-      current.map((appointment) => (appointment.id === id ? { ...appointment, status } : appointment))
-    );
+  async function updateStatus(id: string, status: AppointmentStatus) {
+    await updateAppointmentFields(id, { status });
+  }
+
+  async function updateAppointmentFields(id: string, update: Partial<Appointment>) {
+    if (!canWrite) {
+      setApiStatus("Current token does not include WRITE permission.");
+      return;
+    }
+
+    setIsSyncing(true);
+
+    try {
+      const response = await sendApiRequest(`/api/appointments/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(update)
+      });
+
+      if (!response) {
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const updated = (await response.json()) as Appointment;
+      setAppointments((current) => current.map((appointment) => (appointment.id === id ? updated : appointment)));
+      setApiStatus(`Updated appointment for ${updated.patient}.`);
+    } catch (error) {
+      setApiStatus(error instanceof Error ? error.message : "Could not update appointment.");
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
   function toggleTheme() {
@@ -439,6 +646,45 @@ export default function Home() {
           {theme === "light" ? "Dark mode" : "Light mode"}
         </button>
       </header>
+
+      <section className="api-panel" aria-label="API access">
+        <div className="api-panel__status">
+          <strong>JWT API access</strong>
+          <span>{apiStatus}</span>
+        </div>
+
+        <div className="api-panel__controls">
+          <label className="field token-role">
+            <span>Token role</span>
+            <select
+              value={selectedRole}
+              onChange={(event) => void requestToken(event.target.value as Role)}
+              disabled={isSyncing}
+            >
+              {roleOptions.map((role) => (
+                <option key={role}>{role}</option>
+              ))}
+            </select>
+          </label>
+
+          <button className="button button--secondary" type="button" onClick={() => void requestToken()} disabled={isSyncing}>
+            Refresh token
+          </button>
+          <button className="button button--secondary" type="button" onClick={() => void loadAppointments()} disabled={isSyncing || !apiToken}>
+            Reload data
+          </button>
+          <a className="button button--secondary" href="/docs" target="_blank" rel="noreferrer">
+            API docs
+          </a>
+        </div>
+
+        <div className="permission-strip" aria-label="Current token permissions">
+          <span>Expires {tokenExpiryLabel}</span>
+          {(apiToken?.permissions ?? []).map((permission) => (
+            <strong key={permission}>{permission}</strong>
+          ))}
+        </div>
+      </section>
 
       <section className="overview" aria-labelledby="overview-title">
         <div className="overview-copy">
@@ -594,8 +840,8 @@ export default function Home() {
             />
           </label>
 
-          <button className="button button--primary" type="submit">
-            Add appointment
+          <button className="button button--primary" type="submit" disabled={!canWrite || isSyncing}>
+            {canWrite ? "Add appointment" : "Write locked"}
           </button>
         </form>
 
@@ -705,23 +951,30 @@ export default function Home() {
                     <button
                       className={`button button--compact ${appointment.favorite ? "button--accent" : "button--ghost"}`}
                       type="button"
-                      onClick={() => toggleFavorite(appointment.id)}
+                      onClick={() => void toggleFavorite(appointment.id)}
                       aria-pressed={appointment.favorite}
+                      disabled={!canWrite || isSyncing}
                     >
                       {appointment.favorite ? "Priority" : "Mark priority"}
                     </button>
 
                     <select
                       value={appointment.status}
-                      onChange={(event) => updateStatus(appointment.id, event.target.value as AppointmentStatus)}
+                      onChange={(event) => void updateStatus(appointment.id, event.target.value as AppointmentStatus)}
                       aria-label={`Change status for ${appointment.patient}`}
+                      disabled={!canWrite || isSyncing}
                     >
                       {statusOptions.map((status) => (
                         <option key={status}>{status}</option>
                       ))}
                     </select>
 
-                    <button className="button button--danger" type="button" onClick={() => removeAppointment(appointment.id)}>
+                    <button
+                      className="button button--danger"
+                      type="button"
+                      onClick={() => void removeAppointment(appointment.id)}
+                      disabled={!canDelete || isSyncing}
+                    >
                       Remove
                     </button>
                   </div>

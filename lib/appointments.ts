@@ -1,19 +1,14 @@
 import { randomUUID } from "node:crypto";
+import {
+  initialAppointments,
+  statusOptions,
+  type Appointment,
+  type AppointmentStatus,
+  type SortMode
+} from "./appointment-data";
 
-export type AppointmentStatus = "Scheduled" | "Confirmed" | "Urgent" | "Completed";
-export type SortMode = "soonest" | "latest";
-
-export type Appointment = {
-  id: string;
-  patient: string;
-  dentist: string;
-  service: string;
-  date: string;
-  time: string;
-  status: AppointmentStatus;
-  notes: string;
-  favorite: boolean;
-};
+export { dentistOptions, initialAppointments, serviceOptions, statusOptions } from "./appointment-data";
+export type { Appointment, AppointmentStatus, SortMode } from "./appointment-data";
 
 export type AppointmentInput = Omit<Appointment, "id">;
 export type AppointmentUpdate = Partial<AppointmentInput>;
@@ -49,54 +44,6 @@ export type ValidationResult<T> =
       ok: false;
       error: string;
     };
-
-export const statusOptions: AppointmentStatus[] = ["Scheduled", "Confirmed", "Urgent", "Completed"];
-
-export const dentistOptions = ["Dr. Ana Pop", "Dr. Mihai Sandu", "Dr. Irina Ciobanu"];
-
-export const serviceOptions = [
-  "Routine cleaning",
-  "Dental filling",
-  "Orthodontic check",
-  "Tooth extraction",
-  "Whitening consultation"
-];
-
-export const initialAppointments: Appointment[] = [
-  {
-    id: "apt-1",
-    patient: "Mara Ionescu",
-    dentist: "Dr. Ana Pop",
-    service: "Routine cleaning",
-    date: "2026-05-05",
-    time: "09:30",
-    status: "Scheduled",
-    notes: "Prefers morning appointments.",
-    favorite: true
-  },
-  {
-    id: "apt-2",
-    patient: "Victor Rusu",
-    dentist: "Dr. Mihai Sandu",
-    service: "Orthodontic check",
-    date: "2026-05-05",
-    time: "13:00",
-    status: "Confirmed",
-    notes: "Bring recent panoramic scan.",
-    favorite: false
-  },
-  {
-    id: "apt-3",
-    patient: "Elena Ceban",
-    dentist: "Dr. Ana Pop",
-    service: "Tooth extraction",
-    date: "2026-05-06",
-    time: "11:15",
-    status: "Urgent",
-    notes: "Follow up after emergency call.",
-    favorite: false
-  }
-];
 
 let appointments: Appointment[] = [...initialAppointments];
 

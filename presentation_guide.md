@@ -4,6 +4,8 @@
 
 This lab extends the Lab 6 dental clinic appointment dashboard with a REST back-end. The entity is `Appointment`, with these fields: `id`, `patient`, `dentist`, `service`, `date`, `time`, `status`, `notes`, and `favorite`.
 
+The demo starts with 48 seeded appointments. This makes pagination, filtering, sorting, role permissions, and CRUD operations easier to show without manually creating many records during the presentation.
+
 Implementation commits:
 
 1. `0c8e51f Add appointment domain and JWT helpers`
@@ -37,6 +39,9 @@ REST models application data as resources. In this project, `/api/appointments` 
 
 JWT:
 A JSON Web Token represents signed claims. This app signs tokens with HS256. The payload stores the user role, permissions, issued time, and expiration time. The API checks the signature, expiration, and required permission before executing a request.
+
+Important demo-auth note:
+The public `/token` endpoint is intentionally used for this laboratory work because the assignment requires a token endpoint where roles or permissions can be passed in. This is not a production login system. In a real clinic system, `/token` would verify a username/password, OAuth provider, or other identity provider before issuing a JWT.
 
 Roles and permissions:
 Roles are a convenient way to group permissions. `ADMIN` can read, write, and delete. `WRITER` can read and write. `VISITOR` can only read. The back-end still checks actual permissions, not only the role name.

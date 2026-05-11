@@ -1,25 +1,20 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  dentistOptions,
+  initialAppointments,
+  serviceOptions,
+  statusOptions,
+  type Appointment,
+  type AppointmentStatus,
+  type SortMode
+} from "@/lib/appointment-data";
 
-type AppointmentStatus = "Scheduled" | "Confirmed" | "Urgent" | "Completed";
 type Theme = "light" | "dark";
-type SortMode = "soonest" | "latest";
 type ViewMode = "board" | "timeline";
 type Role = "ADMIN" | "WRITER" | "VISITOR";
 type Permission = "READ" | "WRITE" | "DELETE";
-
-type Appointment = {
-  id: string;
-  patient: string;
-  dentist: string;
-  service: string;
-  date: string;
-  time: string;
-  status: AppointmentStatus;
-  notes: string;
-  favorite: boolean;
-};
 
 type AppointmentForm = Omit<Appointment, "id" | "favorite">;
 
@@ -71,60 +66,13 @@ type IconName = "overview" | "calendar" | "doctors" | "intake";
 const THEME_KEY = "dental-clinic-theme";
 const TOKEN_ROLE_KEY = "dental-clinic-api-role";
 
-const statusOptions: AppointmentStatus[] = ["Scheduled", "Confirmed", "Urgent", "Completed"];
 const roleOptions: Role[] = ["ADMIN", "WRITER", "VISITOR"];
-
-const dentistOptions = ["Dr. Ana Pop", "Dr. Mihai Sandu", "Dr. Irina Ciobanu"];
-
-const serviceOptions = [
-  "Routine cleaning",
-  "Dental filling",
-  "Orthodontic check",
-  "Tooth extraction",
-  "Whitening consultation"
-];
 
 const navigationItems: { label: string; href: string; icon: IconName }[] = [
   { label: "Overview", href: "#overview", icon: "overview" },
   { label: "Availability", href: "#availability", icon: "doctors" },
   { label: "Schedule", href: "#schedule", icon: "calendar" },
   { label: "Intake", href: "#intake", icon: "intake" }
-];
-
-const initialAppointments: Appointment[] = [
-  {
-    id: "apt-1",
-    patient: "Mara Ionescu",
-    dentist: "Dr. Ana Pop",
-    service: "Routine cleaning",
-    date: "2026-05-05",
-    time: "09:30",
-    status: "Scheduled",
-    notes: "Prefers morning appointments.",
-    favorite: true
-  },
-  {
-    id: "apt-2",
-    patient: "Victor Rusu",
-    dentist: "Dr. Mihai Sandu",
-    service: "Orthodontic check",
-    date: "2026-05-05",
-    time: "13:00",
-    status: "Confirmed",
-    notes: "Bring recent panoramic scan.",
-    favorite: false
-  },
-  {
-    id: "apt-3",
-    patient: "Elena Ceban",
-    dentist: "Dr. Ana Pop",
-    service: "Tooth extraction",
-    date: "2026-05-06",
-    time: "11:15",
-    status: "Urgent",
-    notes: "Follow up after emergency call.",
-    favorite: false
-  }
 ];
 
 const emptyForm: AppointmentForm = {

@@ -16,7 +16,9 @@ Dental Clinic Appointment Manager
 
 The application is a reception desk workspace for a dental clinic. It keeps an appointment board with patient name, dentist, service, date, time, status, notes, and a priority marker. Reception staff can create new appointments, remove outdated ones, update the visit status, mark important patients, search the schedule, and filter the visible queue.
 
-Lab 7 adds a back-end API for the same appointment entity. The client now requests a short-lived JWT from `/token`, sends it as a Bearer token to the API, and uses the protected endpoints for create, read, update, and delete operations.
+Lab 7 adds a back-end API for the same appointment entity. The client now requests a short-lived JWT from `/token`, sends it as a Bearer token to the API, and uses the protected endpoints for create, read, update, and delete operations. The seeded demo dataset includes 48 appointments so pagination, filtering, and sorting can be tested with a larger collection.
+
+Authentication is intentionally demo-scoped for this laboratory work: the `/token` endpoint lets a tester request a role because the assignment requires an endpoint that returns a JWT and allows role or permission input. In a real production application, this endpoint would be issued only after login and server-side user validation.
 
 ## Main Flows
 
